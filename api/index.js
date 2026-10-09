@@ -142,6 +142,12 @@ async function searchWeb(query) {
     }
 
     const results = (data.organic || [])
+      console.log(
+        "Serper response time:",
+        Date.now() - startedAt,
+        "ms; results:",
+        data.organic?.length || 0
+      );
       .slice(0, 5)
       .map((item, index) => {
         return [
