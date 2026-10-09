@@ -57,7 +57,18 @@ if (!response.ok) {
 console.error("Gemini API error", response.status, (await response.text()).slice(0, 500));
 throw new Error("Gemini request failed");
 }
-const data = await response.json();
+
+const rawResponse = await response.text();
+
+let data;
+try {
+  data = JSON.parse(rawResponse);
+} catch (error) {
+  console.error("Invalid JSON from Gemini:", response.status, rawResponse.slice(0, 1000));
+  throw new Error("Gemini returned invalid JSON");
+}
+
+
 return (data.candidates?.[0]?.content?.parts || []).map(x => x.text || "").join("").trim() || "Не удалось сформировать ответ. Попробуйте переформулировать вопрос.";
 }
 
