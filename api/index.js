@@ -217,7 +217,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const body = req.body || {};
+   let body;
+
+try {
+  if (typeof req.body === "string") {
+    body = JSON.parse(req.body);
+  } else {
+    body = req.body;
+  }
+
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("Request body must be a JSON object");
+  }
+} catch (error) {
+  console.error("Invalid incoming request body:", error.message);
+
+  return sendJson(res, 400, {
+    error: "Invalid JSON in request body"
+  });
+}
 
     const command = [
       body.request?.original_utterance,
