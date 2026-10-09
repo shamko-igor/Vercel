@@ -294,11 +294,7 @@ const command = [
       }
     }
 
-    const answer = await askGemini(
-      command,
-      history,
-      searchContext
-    );
+const answer = "Да, я здесь! Сервер работает.";
 
     const nextHistory = [
       ...history,
