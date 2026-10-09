@@ -283,18 +283,18 @@ function extractCityFromHistory(history) {
 // Формирование поискового запроса
 // --------------------------------------------------
 
+
 function buildSearchQuery(command, history) {
   const text = normalizeText(command);
 
-if (isWeatherQuery(command)) {
+  // Погода: формируем отдельный запрос, не смешивая
+  // его с приветствиями и другими репликами.
+  if (isWeatherQuery(command)) {
     const city = extractCityFromHistory(history);
 
     if (!city) {
       return "";
     }
-
-    return `погода сейчас в городе ${city}, температура, ощущается как, ветер, осадки`;
-  }
 
     return [
       `погода сейчас в городе ${city}`,
@@ -306,6 +306,7 @@ if (isWeatherQuery(command)) {
     ].join(", ");
   }
 
+  // Получаем предыдущие сообщения пользователя.
   const users = history
     .map((item, index) => ({
       ...item,
@@ -313,6 +314,7 @@ if (isWeatherQuery(command)) {
     }))
     .filter(item => item.role === "user");
 
+  // Находим последнее сообщение, требовавшее поиска.
   let anchor = -1;
 
   for (let i = users.length - 1; i >= 0; i--) {
@@ -322,10 +324,12 @@ if (isWeatherQuery(command)) {
     }
   }
 
+  // Если это не уточнение, ищем только по текущему вопросу.
   if (anchor === -1 || !isLikelyFollowUp(command)) {
     return command;
   }
 
+  // Объединяем исходный поисковый вопрос с уточнениями.
   const refinements = users
     .slice(anchor + 1)
     .map(item => item.text);
@@ -336,6 +340,7 @@ if (isWeatherQuery(command)) {
     command
   ].join(". ");
 }
+
 
 // --------------------------------------------------
 // Поиск через Serper
