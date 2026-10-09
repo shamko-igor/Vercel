@@ -1,4 +1,4 @@
-const GEMINI_MODEL = "gemini-3.5-flash-lite";
+const GEMINI_MODEL = "gemini-3.5-flash";
 
 const MAX_HISTORY = 15;
 const MAX_TEXT = 900;
