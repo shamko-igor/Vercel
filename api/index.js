@@ -7,7 +7,7 @@ const MAX_HISTORY_TEXT = 1000;
 
 // Тайм-ауты внешних API.
 const SERPER_TIMEOUT_MS = 1500;
-const GEMINI_TIMEOUT_MS = 2200;
+const GEMINI_TIMEOUT_MS = 7000;
 
 // --------------------------------------------------
 // Ответ Яндекс Алисе
