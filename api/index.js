@@ -286,12 +286,15 @@ function extractCityFromHistory(history) {
 function buildSearchQuery(command, history) {
   const text = normalizeText(command);
 
-  if (isWeatherQuery(text)) {
+if (isWeatherQuery(command)) {
     const city = extractCityFromHistory(history);
 
     if (!city) {
       return "";
     }
+
+    return `погода сейчас в городе ${city}, температура, ощущается как, ветер, осадки`;
+  }
 
     return [
       `погода сейчас в городе ${city}`,
