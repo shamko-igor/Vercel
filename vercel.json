@@ -1,4 +1,15 @@
+
 {
-  "версия" : 2 , 
-  "functions" : { "api/index.js" : { "maxDuration" : 30 } }       
+  "version": 2,
+  "functions": {
+    "api/index.js": {
+      "runtime": "@vercel/node"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api",
+      "destination": "/api/index"
+    }
+  ]
 }
