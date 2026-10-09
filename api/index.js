@@ -1,4 +1,4 @@
-const GEMINI_MODEL = "gemini-3.5-flash";
+const GEMINI_MODEL = "gemini-3.5-flash-light";
 
 const MAX_HISTORY = 15;
 const MAX_TEXT = 900;
@@ -301,7 +301,7 @@ async function askGemini(command, history, options = {}) {
       }
     ],
     generationConfig: {
-      temperature: 0.4,
+      temperature: 0.7,
       maxOutputTokens: 600
     }
   };
