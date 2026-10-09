@@ -76,7 +76,18 @@ body.request?.command
 .find(Boolean) || "";
 const prior = body.state?.session || body.session_state || {};
 const history = Array.isArray(prior.history) ? prior.history.filter(x => x && typeof x.text === "string" && ["user", "model"].includes(x.role)).slice(-MAX_HISTORY) : [];
-if (!command) return sendJson(res, 200, reply("Привет! Чем могу помочь?", { history }));
+if (!command) {
+  return sendJson(res, 200, reply(
+    "Диагностика: " + JSON.stringify({
+      bodyType: typeof body,
+      bodyKeys: Object.keys(body || {}),
+      requestKeys: Object.keys(body.request || {}),
+      original_utterance: body.request?.original_utterance,
+      command: body.request?.command
+    }),
+    { history }
+  ));
+}
 let searchContext = "";
 if (shouldSearch(command) && process.env.SERPER_API_KEY) {
 try { searchContext = await searchWeb(command); }
