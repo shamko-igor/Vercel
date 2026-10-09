@@ -294,7 +294,17 @@ const command = [
       }
     }
 
-const answer = "Да, я здесь! Сервер работает.";
+const startedAt = Date.now();
+
+let answer;
+
+try {
+  answer = await askGemini(command, history, searchContext);
+  console.log("Gemini response time:", Date.now() - startedAt, "ms");
+} catch (error) {
+  console.error("Gemini failed:", Date.now() - startedAt, "ms", error.message);
+  answer = "Не удалось связаться с ИИ. Попробуйте ещё раз.";
+}
 
     const nextHistory = [
       ...history,
