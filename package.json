@@ -1,0 +1,7 @@
+{
+  "имя" : "alice-gemini-voicehook" , 
+  "версия" : "1.0.1" , 
+  "private" : true , 
+  "main" : "api/index.js" , 
+  "engines" : { "node" : ">=20" }    
+}
