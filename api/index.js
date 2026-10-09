@@ -1,5 +1,5 @@
-const GEMINI_MODEL = "gemini-3.8-flash";
-const MAX_HISTORY = 12;
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
+const MAX_HISTORY = 6;
 const MAX_TEXT = 4000;
 
 // Отправка JSON-ответа
@@ -151,8 +151,8 @@ async function askGemini(command, history, searchContext) {
           }
         ],
         generationConfig: {
-          temperature: 0.6,
-          maxOutputTokens: 220
+          temperature: 0.4,
+          maxOutputTokens: 100
         }
       }),
       signal: AbortSignal.timeout(20000)
