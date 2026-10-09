@@ -293,7 +293,7 @@ async function askGemini(command, history, searchContext) {
           ],
           generationConfig: {
             temperature: 0.4,
-            maxOutputTokens: 200
+            maxOutputTokens: 600
           }
         }),
         signal: controller.signal
