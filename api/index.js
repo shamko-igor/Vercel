@@ -141,22 +141,16 @@ async function searchWeb(query) {
       return "";
     }
 
-    const results = (data.organic || [])
-      console.log(
-        "Serper response time:",
-        Date.now() - startedAt,
-        "ms; results:",
-        data.organic?.length || 0
-      );
-      .slice(0, 5)
-      .map((item, index) => {
-        return [
-          `Результат ${index + 1}: ${item.title || ""}`,
-          `Описание: ${item.snippet || ""}`,
-          `Источник: ${item.link || ""}`
-        ].join("\n");
-      })
-      .join("\n\n");
+const results = (data.organic || [])
+  .slice(0, 5)
+  .map((item, index) => {
+    return [
+      `Результат ${index + 1}: ${item.title || ""}`,
+      `Описание: ${item.snippet || ""}`,
+      `Источник: ${item.link || ""}`
+    ].join("\n");
+  })
+  .join("\n\n");
 
     console.log(
       "Serper response time:",
