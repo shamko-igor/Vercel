@@ -161,6 +161,94 @@ return true;
 return false;
 }
 
+
+function normalizeText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .trim();
+}
+
+// Проверяем, похоже ли сообщение на уточнение
+// предыдущего вопроса, требовавшего интернет-поиска.
+function isLikelyFollowUp(command) {
+  const text = normalizeText(command);
+
+  if (!text) return false;
+
+  // Благодарности и короткие реакции — не поисковые уточнения.
+  if (
+    /^(спасибо|понятно|ясно|ладно|хорошо|ок|окей|пока|до свидания)\b/i.test(text)
+  ) {
+    return false;
+  }
+
+  // Явно новая тема должна обрабатываться отдельно.
+  if (
+    /погод|новост|матч|футбол|курс валют|доллар|евро|биткоин|криптовалют|сколько стоит|цена сегодня/i.test(text)
+  ) {
+    // Валюта — исключение: «А евро?» может продолжать
+    // разговор о курсе валют.
+    if (/^(а\s+)?(евро|доллар|доллару|юан[ья])\b/i.test(text)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  // Типичные уточнения: город, дата, место, условие.
+  if (
+    /^(а\s+если|а\s+в|а\s+на|а\s+для|а\s+по|а\s+там|а\s+тогда|а\s+именно|а\s+какой|а\s+какая|а\s+какое|а\s+сколько|в\s+городе|для\s+города|по\s+городу|меня\s+интересует|имею\s+в\s+виду|а\s+именно|именно|только|там|тогда)\b/i.test(text)
+  ) {
+    return true;
+  }
+
+  // Короткие ответы вроде «Новосибирск» или «на завтра».
+  const words = text.split(/\s+/).filter(Boolean);
+
+  return words.length <= 2 && text.length <= 35;
+}
+
+// Собираем поисковый запрос из последней поисковой темы
+// и реплик пользователя, произнесённых после неё.
+function buildSearchQuery(command, history) {
+  const users = history
+    .map((item, index) => ({
+      ...item,
+      index
+    }))
+    .filter(item => item.role === "user");
+
+  let anchor = -1;
+
+  for (let i = users.length - 1; i >= 0; i--) {
+    if (shouldSearch(users[i].text)) {
+      anchor = i;
+      break;
+    }
+  }
+
+  if (anchor === -1) {
+    return command;
+  }
+
+  const previousSearch = users[anchor].text;
+
+  if (!isLikelyFollowUp(command)) {
+    return command;
+  }
+
+  const refinements = users
+    .slice(anchor + 1)
+    .map(item => item.text);
+
+  return [
+    previousSearch,
+    ...refinements,
+    command
+  ].join(". ");
+}
+
 // --------------------------------------------------
 // Поиск через Serper
 // --------------------------------------------------
@@ -272,7 +360,7 @@ function buildHistoryText(history) {
 // Запрос к Gemini
 // --------------------------------------------------
 
-async function askGemini(command, history, searchContext) {
+async function askGemini(command, history, searchContext, searchRequired) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not configured");
   }
@@ -307,9 +395,9 @@ async function askGemini(command, history, searchContext) {
         "РЕЗУЛЬТАТЫ ПОИСКА:",
         searchContext
       ].join("\n")
-    : shouldSearch(command)
-      ? "Для этого вопроса нужны актуальные сведения, но поиск не дал результатов. Не угадывай текущие данные. Честно сообщи, что не удалось проверить информацию."
-      : "Если вопрос требует актуальных данных, которых нет в контексте, честно сообщи об ограничении.",
+    : searchRequired
+  ? "Для этого вопроса нужны актуальные сведения, но поиск не дал результатов. Не угадывай текущие данные. Честно сообщи, что не удалось проверить информацию."
+  : "Если вопрос требует актуальных данных, которых нет в контексте, честно сообщи об ограничении.",
   historyText
     ? `ПРЕДЫДУЩИЙ ДИАЛОГ:\n${historyText}`
     : "",
@@ -512,37 +600,37 @@ module.exports = async function handler(req, res) {
       );
     }
 
-    let searchContext = "";
-
-    // Поиск выполняется только для вопросов,
-    // которым нужны актуальные сведения.
-
     
-const previousUserMessage = [...history]
-  .reverse()
-  .find(item => item.role === "user");
+let searchContext = "";
 
-const isSearchFollowUp =
-  Boolean(previousUserMessage) &&
-  shouldSearch(previousUserMessage.text) &&
-  /меня интересует|имею в виду|а именно|по городу|для города|в городе/i.test(command);
+const needsSearch = shouldSearch(command);
+const isFollowUp = isLikelyFollowUp(command);
 
-const searchQuery = isSearchFollowUp
-  ? `${previousUserMessage.text}. Уточнение: ${command}`
+const previousSearchExists = history.some(
+  item => item.role === "user" && shouldSearch(item.text)
+);
+
+const searchRequired =
+  needsSearch || (isFollowUp && previousSearchExists);
+
+const searchQuery = searchRequired
+  ? buildSearchQuery(command, history)
   : command;
 
-if (shouldSearch(command) || isSearchFollowUp) {
+if (searchRequired) {
+  console.log("Search query:", searchQuery);
   searchContext = await searchWeb(searchQuery);
 }
 
     let answer;
 
     try {
-      answer = await askGemini(
-        command,
-        history,
-        searchContext
-      );
+answer = await askGemini(
+  command,
+  history,
+  searchContext,
+  searchRequired
+);
     } catch (error) {
       console.error("Gemini failed:", error.message);
 
