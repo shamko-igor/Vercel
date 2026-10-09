@@ -1,6 +1,6 @@
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
-const MAX_HISTORY = 6;
+const MAX_HISTORY = 15;
 const MAX_TEXT = 900;
 const MAX_COMMAND = 1500;
 const MAX_HISTORY_TEXT = 1000;
