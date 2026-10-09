@@ -237,12 +237,18 @@ try {
   });
 }
 
-    const command = [
-      body.request?.original_utterance,
-      body.request?.command
-    ]
-      .map(value => String(value ?? "").trim())
-      .find(Boolean) || "";
+const request = body.request || {};
+
+const command = [
+  request.original_utterance,
+  request.command,
+  request.nlu?.tokens?.join(" "),
+  request.payload?.text,
+  body.command,
+  body.text
+]
+  .map(value => String(value ?? "").trim())
+  .find(Boolean) || "";
 
     const prior = body.state?.session || body.session_state || {};
 
