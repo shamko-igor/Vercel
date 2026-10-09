@@ -9,7 +9,7 @@ const MAX_HISTORY_TEXT = 1000;
 const TOTAL_BUDGET_MS = 4300;
 
 // Основной путь: Gemini + google_search (grounding).
-const GEMINI_PRIMARY_TIMEOUT_MS = 2200;
+const GEMINI_PRIMARY_TIMEOUT_MS = 2500;
 
 // Фолбэк: Serper + Gemini без инструментов.
 const SERPER_TIMEOUT_MS = 1000;
