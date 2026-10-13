@@ -943,7 +943,7 @@ async function askGemini(
 
   console.log("Gemini request started:", startedAt);
 
- const timeoutMs = Math.min( || 15000, 15000);
+ const timeoutMs = 15000;
 
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is missing");
