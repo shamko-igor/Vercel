@@ -1302,7 +1302,7 @@ const userId =
 const memoryStartedAt = Date.now();
 const memories = await loadMemories(userId);
 const rememberMatch = command.match(
-  /^\s*(?:запомни|запомни-ка|сохрани в памяти)\s*[:,]?\s*(.+?)\s*[.!]?\s*$/i
+  /(?:^|[.!?]\s*|\s+)(?:запомни-ка|запомни|сохрани в памяти)\s*[:,]?\s*(.+?)\s*[.!]?\s*$/i
 );
 
 if (rememberMatch) {
