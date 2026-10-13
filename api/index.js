@@ -1039,7 +1039,7 @@ async function askGemini(
    const contents = [];
 
   if (Array.isArray(history)) {
-    for (const item of history.slice(-MAX_HISTORY)) {
+    for (const item of history.slice(-6)) {
       const role =
         item?.role === "assistant" || item?.role === "model"
           ? "model"
@@ -1052,7 +1052,7 @@ async function askGemini(
       if (role && text) {
         contents.push({
           role,
-          parts: [{ text: text.slice(0, 500) }]
+          parts: [{ text: text.slice(0, 300) }]
         });
       }
     }
