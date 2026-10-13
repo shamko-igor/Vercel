@@ -1151,7 +1151,10 @@ console.log(
           contents: normalizedContents,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 360
+            maxOutputTokens: 120,
+            thinkingConfig: {
+    thinkingLevel: "minimal"
+  }
           }
         }),
         signal: controller.signal
