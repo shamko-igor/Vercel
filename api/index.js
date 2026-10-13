@@ -943,7 +943,7 @@ async function askGemini(
 
   console.log("Gemini request started:", startedAt);
 
- const timeoutMs = Math.min(GEMINI_TIMEOUT_MS || 15000, 15000);
+ const timeoutMs = Math.min( || 15000, 15000);
 
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is missing");
@@ -1121,7 +1121,7 @@ async function askGemini(
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),
-    Math.min(GEMINI_TIMEOUT_MS, 3000)
+    Math.min(GEMINI_TIMEOUT_MS, 15000)
   );
 console.log(
   "GEMINI HISTORY:",
