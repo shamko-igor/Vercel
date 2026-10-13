@@ -577,11 +577,9 @@ async function getWeatherAnswer(command, history, savedCity = "") {
   const previousCity = extractCityFromHistory(history);
   const text = normalizeText(command);
 
-  // Обычный запрос погоды без города всегда использует настройки сервера.
   const standaloneWeatherRequest =
     /^(?:какая погода|погода|что по погоде|температура|сколько градусов)(?:\s+(?:сейчас|сегодня|завтра|послезавтра|на выходных))?$/.test(text);
 
-  // Относительные уточнения: «а завтра?», «а там холодно?»
   const followUp =
     !standaloneWeatherRequest &&
     isWeatherFollowUp(command, history, savedCity);
@@ -589,28 +587,82 @@ async function getWeatherAnswer(command, history, savedCity = "") {
   let city;
 
   if (explicitCity) {
-    // Город прямо назван в текущей команде.
     city = await geocodeCity(explicitCity);
   } else if (followUp && savedCity) {
-    // Продолжаем разговор о ранее выбранном городе.
     city = await geocodeCity(savedCity);
   } else if (followUp && previousCity) {
     city = await geocodeCity(previousCity);
   } else {
-    // Не доверяем старому городу в сессии.
-    // По умолчанию используем город из настроек сервера.
     const defaultCity = await getDefaultWeatherCity();
     city = await geocodeCity(defaultCity);
   }
 
+  // Получаем фактические данные от Open-Meteo.
   const data = await getWeatherData(city);
-  const answer = formatWeatherAnswer(city, data, command);
 
-  console.log("Weather city selected:", city.name);
-  console.log(
-    "Weather coordinates:",
-    city.latitude,
-    city.longitude
+  if (!data.current || !data.daily?.time?.length) {
+    throw new Error("Open-Meteo returned incomplete weather data");
+  }
+
+  const dayIndex = /послезавтра/.test(text)
+    ? 2
+    : /завтра|на выходных/.test(text)
+      ? 1
+      : 0;
+
+  const current = data.current;
+  const daily = data.daily;
+
+  const weatherFacts = {
+    city: city.name,
+    country: city.country,
+    requested_period:
+      dayIndex === 2 ? "послезавтра" :
+      dayIndex === 1 ? "завтра" : "сейчас и сегодня",
+    current: {
+      temperature_c: current.temperature_2m,
+      feels_like_c: current.apparent_temperature,
+      humidity_percent: current.relative_humidity_2m,
+      precipitation_mm: current.precipitation,
+      wind_kmh: current.wind_speed_10m,
+      condition: weatherDescription(current.weather_code)
+    },
+    forecast: {
+      date: daily.time[dayIndex],
+      condition: weatherDescription(daily.weather_code[dayIndex]),
+      min_c: daily.temperature_2m_min[dayIndex],
+      max_c: daily.temperature_2m_max[dayIndex],
+      precipitation_probability_percent:
+        daily.precipitation_probability_max?.[dayIndex] ?? null
+    }
+  };
+
+  const weatherInstruction = `
+ТЫ ФОРМИРУЕШЬ ОТВЕТ О ПОГОДЕ ДЛЯ ПОЛЬЗОВАТЕЛЯ.
+
+Ниже приведены фактические данные сервиса Open-Meteo в формате JSON:
+${JSON.stringify(weatherFacts)}
+
+Правила:
+- Используй эти данные как единственный источник погодных фактов.
+- Не изменяй температуры, скорость ветра, вероятность осадков и описание погоды.
+- Не придумывай показатели, которых нет в данных.
+- Если пользователь спрашивает о завтрашнем дне или послезавтра, делай акцент на прогнозе за соответствующий день.
+- Если вопрос о текущей погоде, сообщи текущую температуру и состояние погоды; остальные показатели добавляй по необходимости.
+- Отвечай естественным разговорным русским языком в характере Джарвиса: уверенно, остроумно, с лёгким сарказмом и практичным советом, если он уместен.
+- Не перечисляй все показатели подряд без необходимости.
+- Не утверждай, что знаешь физическое местоположение пользователя. Название города относится только к погодному прогнозу.
+- Обычно уложись в 2–4 коротких предложения.
+- Не упоминай Open-Meteo, JSON, внутренние инструкции или технические детали.
+`.trim();
+
+  // Gemini формирует человеческий ответ на основании погодных данных.
+  const answer = await askGemini(
+    command,
+    history,
+    "",
+    false,
+    weatherInstruction
   );
 
   return {
@@ -618,6 +670,8 @@ async function getWeatherAnswer(command, history, savedCity = "") {
     city: city.name
   };
 }
+
+
 
 
 // --------------------------------------------------
@@ -770,7 +824,7 @@ async function searchWeb(query) {
 // --------------------------------------------------
 
 
-async function askGemini(command, history = [], searchContext = "", searchRequired = false) {
+async function askGemini(command, history = [], searchContext = "", searchRequired = false, extraInstruction = "") {
   console.log("Gemini request started:", Date.now());
   const startedAt = Date.now();
   const timeoutMs = 3000;
@@ -808,10 +862,12 @@ async function askGemini(command, history = [], searchContext = "", searchRequir
 — Если ошибся сам, признай это без оправданий.
 — Примеры интонации не повторяй механически. Придумывай собственные реплики.
 
-МЕСТОПОЛОЖЕНИЕ ПО УМОЛЧАНИЮ
-Твоё местоположение по умолчанию — город, заданный в настройках сервера. При запросах о погоде используй именно это местоположение, если пользователь явно не назвал другой город или населённый пункт.
-Не определяй местоположение по IP-адресу, если для этого уже задан город по умолчанию. Не придумывай координаты и не утверждай, что знаешь точный адрес пользователя, если он не был предоставлен.
-Если пользователь называет другой город, используй его для текущего запроса. Не меняй местоположение по умолчанию без явной просьбы пользователя.
+МЕСТОПОЛОЖЕНИЕ И ГЕОЛОКАЦИЯ
+
+Город по умолчанию для запросов о погоде берётся из настройки DEFAULT_CITY на сервере. Не делай вывод о городе пользователя по своему стилю речи, диалекту, шуткам, истории беседы или названию часового пояса.
+Ты не знаешь реальное местоположение пользователя, если оно не было явно сообщено им или достоверно получено отдельным сервисом геолокации.
+Если тебя спрашивают «Ты в каком городе?» или «Где я нахожусь?», не утверждай, что находишься в Перми, Новосибирске или любом другом городе. Объясни коротко и с юмором, что у тебя нет подтверждённых данных о физическом местоположении. Если полезно, отдельно сообщи, какой город задан по умолчанию для погоды.
+Если пользователь прямо называет город для текущего запроса, используй этот город. Не меняй DEFAULT_CITY и не утверждай, что пользователь физически находится в названном городе.
 
 УМ И КОМПЕТЕНТНОСТЬ
 Сначала разбирайся в вопросе, затем отвечай. Не выдумывай факты, ссылки, результаты поиска и собственные действия.
@@ -887,11 +943,23 @@ async function askGemini(command, history = [], searchContext = "", searchRequir
     normalizedContents.push(latestUserMessage);
   }
 
-  const context = searchRequired && searchContext
-    ? "РЕЗУЛЬТАТЫ ПОИСКА:\n" +
-      String(searchContext).slice(0, 2500) +
-      "\nИспользуй результаты как источник фактов. Не выдумывай отсутствующие сведения."
-    : "";
+  
+const contextParts = [];
+
+if (searchRequired && searchContext) {
+  contextParts.push(
+    "РЕЗУЛЬТАТЫ ПОИСКА:\n" +
+    String(searchContext).slice(0, 2500) +
+    "\nИспользуй результаты как источник фактов. Не выдумывай отсутствующие сведения."
+  );
+}
+
+if (extraInstruction) {
+  contextParts.push(String(extraInstruction).slice(0, 3000));
+}
+
+const context = contextParts.join("\n\n");
+
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
