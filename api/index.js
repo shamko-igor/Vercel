@@ -6,7 +6,7 @@ const MAX_COMMAND = 1500;
 const MAX_HISTORY_TEXT = 1000;
 
 const SERPER_TIMEOUT_MS = 3000;
-const GEMINI_TIMEOUT_MS = 7000;
+const GEMINI_TIMEOUT_MS = 2500;
 
 const WEATHER_TIMEOUT_MS = 2500;
 const IP_TIMEOUT_MS = 1200;
@@ -506,6 +506,7 @@ async function getWeatherAnswer(command, history, req) {
       : ""
   ].filter(Boolean).join("\n");
 
+try {
   return await askGemini(
     command,
     history,
@@ -513,6 +514,27 @@ async function getWeatherAnswer(command, history, req) {
     false,
     weatherContext
   );
+} catch (error) {
+  console.error("Gemini weather fallback:", error.message);
+
+  const description = weatherDescription(
+    dayIndex === 0
+      ? current.weather_code
+      : daily.weather_code[dayIndex]
+  );
+
+  const min = daily.temperature_2m_min[dayIndex];
+  const max = daily.temperature_2m_max[dayIndex];
+  const rain = daily.precipitation_probability_max?.[dayIndex];
+
+  if (dayIndex === 0) {
+    return `Слушай, в ${city.name} сейчас ${current.temperature_2m} градусов, ${description}. За день температура от ${min} до ${max} градусов.${rain != null ? ` Вероятность осадков — ${rain} процентов.` : ""}`;
+  }
+
+  const dayName = dayIndex === 1 ? "Завтра" : "Послезавтра";
+
+  return `${dayName} в ${city.name}: ${description}, температура от ${min} до ${max} градусов.${rain != null ? ` Вероятность осадков — ${rain} процентов.` : ""}`;
+}
 }
 
 
