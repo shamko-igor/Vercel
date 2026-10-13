@@ -1224,7 +1224,16 @@ module.exports = async function handler(req, res) {
     }
 
     const command = extractCommand(body);
-
+console.log("ALICE STATE CHECK:", JSON.stringify({
+  sessionNew: body.session?.new,
+  hasState: Boolean(body.state),
+  hasSessionState: Boolean(body.session_state),
+  stateKeys: Object.keys(body.state || {}),
+  sessionStateKeys: Object.keys(body.session_state || {}),
+  sessionId: body.session?.session_id,
+  messageId: body.session?.message_id,
+  command
+}));
     const prior = body.state?.session || body.session_state || {};
     console.log("STATE DEBUG:", JSON.stringify({
   stateKeys: Object.keys(body.state || {}),
