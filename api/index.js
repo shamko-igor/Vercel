@@ -7,7 +7,7 @@ const MAX_COMMAND = 1000;
 const MAX_HISTORY_TEXT = 600;
 
 const SERPER_TIMEOUT_MS = 1000;
-const GEMINI_TIMEOUT_MS = 2500;
+const GEMINI_TIMEOUT_MS = 4000;
 const WEATHER_TIMEOUT_MS = 1800;
 
 const DEFAULT_CITY = "Новосибирск";
