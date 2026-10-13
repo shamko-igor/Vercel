@@ -769,7 +769,7 @@ async function searchWeb(query) {
     SERPER_TIMEOUT_MS
   );
 
-  const startedAt = Date.now();
+  const weatherFetchStartedAt = Date.now();
 
   try {
     const response = await fetch("https://google.serper.dev/search", {
@@ -845,7 +845,7 @@ async function searchWeb(query) {
 
 async function askGemini(command, history = [], searchContext = "", searchRequired = false, extraInstruction = "") {
   console.log("Gemini request started:", Date.now());
-  const startedAt = Date.now();
+  const weatherFetchStartedAt = Date.now();
   const timeoutMs = 3000;
 
   if (!process.env.GEMINI_API_KEY) {
@@ -984,7 +984,7 @@ const context = contextParts.join("\n\n");
   console.log("Weather fetch started:", url);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   
-const startedAt = Date.now();
+const weatherFetchStartedAt = Date.now();
 
 try {
   const response = await fetch(url, {
