@@ -427,6 +427,7 @@ function weatherDescription(code) {
   return WEATHER_CODES[code] || "переменная погода";
 }
 
+
 async function getWeatherData(city) {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
 
@@ -458,7 +459,26 @@ async function getWeatherData(city) {
   url.searchParams.set("forecast_days", "3");
   url.searchParams.set("timezone", "auto");
 
-  return fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  try {
+    const data = await fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
+
+    console.log("Open-Meteo forecast received:", {
+      city: city.name,
+      elapsedMs: Date.now() - startedAt
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Open-Meteo forecast failed:", {
+      city: city.name,
+      elapsedMs: Date.now() - startedAt,
+      message: error.message
+    });
+
+    throw error;
+  }
 }
 
 // --------------------------------------------------
@@ -593,8 +613,7 @@ async function getWeatherAnswer(command, history, savedCity = "") {
   } else if (followUp && previousCity) {
     city = await geocodeCity(previousCity);
   } else {
-    const defaultCity = await getDefaultWeatherCity();
-    city = await geocodeCity(defaultCity);
+    city = getDefaultWeatherCity();
   }
 
   // Получаем фактические данные от Open-Meteo.
@@ -962,8 +981,34 @@ const context = contextParts.join("\n\n");
 
 
   const controller = new AbortController();
+  console.log("Weather fetch started:", url);
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  
+const startedAt = Date.now();
 
+try {
+  const response = await fetch(url, {
+    signal: controller.signal
+  });
+
+  console.log("Weather fetch completed:", {
+    url,
+    status: response.status,
+    elapsedMs: Date.now() - startedAt
+  });
+
+  // Оставь здесь существующую обработку response.
+} catch (error) {
+  console.error("Weather fetch failed:", {
+    url,
+    elapsedMs: Date.now() - startedAt,
+    name: error.name,
+    message: error.message
+  });
+
+  throw error;
+}
+  
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
