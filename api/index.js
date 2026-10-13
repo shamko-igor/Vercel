@@ -1432,6 +1432,7 @@ const savedWeatherCity =
     }
 
     const nextHistory = addToHistory(history, command, answer);
+    await saveConversation(sessionId, nextHistory, savedWeatherCity);
 
     console.log(
       "Webhook total time:",
