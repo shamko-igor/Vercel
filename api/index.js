@@ -1,12 +1,12 @@
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
-const MAX_HISTORY = 21;
+const MAX_HISTORY = 10;
 const MAX_TEXT = 900;
-const MAX_COMMAND = 1500;
-const MAX_HISTORY_TEXT = 1000;
+const MAX_COMMAND = 1000;
+const MAX_HISTORY_TEXT = 600;
 
-const SERPER_TIMEOUT_MS = 2500;
+const SERPER_TIMEOUT_MS = 1000;
 const GEMINI_TIMEOUT_MS = 2500;
 const WEATHER_TIMEOUT_MS = 1800;
 const IP_TIMEOUT_MS = 800;
@@ -822,7 +822,7 @@ async function askGemini(command, history, searchContext, searchRequired) {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 300
+            maxOutputTokens: 180
           }
         }),
         signal: controller.signal
