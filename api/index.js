@@ -1,10 +1,10 @@
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
-const MAX_HISTORY = 10;
+const MAX_HISTORY = 25;
 const MAX_TEXT = 900;
-const MAX_COMMAND = 1000;
-const MAX_HISTORY_TEXT = 600;
+const MAX_COMMAND = 5000;
+const MAX_HISTORY_TEXT = 2500;
 
 const SERPER_TIMEOUT_MS = 1000;
 const GEMINI_TIMEOUT_MS = 4000;
