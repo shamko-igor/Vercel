@@ -746,7 +746,7 @@ async function searchWeb(query) {
 
 async function askGemini(command, history = [], searchContext = "", searchRequired = false) {
   const startedAt = Date.now();
-  const timeoutMs = 1800;
+  const timeoutMs = 3000;
 
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is missing");
