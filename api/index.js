@@ -199,6 +199,71 @@ async function saveConversation(sessionId, history, weatherCity = "") {
   }
 }
 
+async function loadMemories(userId) {
+  if (!sql || !userId) return [];
+
+  try {
+    const rows = await sql`
+      SELECT id, category, memory, updated_at
+      FROM alice_memories
+      WHERE user_id = ${userId}
+      ORDER BY updated_at DESC
+      LIMIT 30
+    `;
+
+    return rows;
+  } catch (error) {
+    console.error("Load memories error:", error.message);
+    return [];
+  }
+}
+
+async function saveMemory(userId, category, memory) {
+  if (!sql || !userId || !memory) return false;
+
+  const cleanCategory = String(category || "general")
+    .trim()
+    .slice(0, 50);
+
+  const cleanMemory = String(memory)
+    .trim()
+    .slice(0, 1000);
+
+  if (!cleanMemory) return false;
+
+  try {
+    const existing = await sql`
+      SELECT id
+      FROM alice_memories
+      WHERE user_id = ${userId}
+        AND category = ${cleanCategory}
+        AND memory = ${cleanMemory}
+      LIMIT 1
+    `;
+
+    if (existing.length > 0) {
+      await sql`
+        UPDATE alice_memories
+        SET updated_at = NOW()
+        WHERE id = ${existing[0].id}
+      `;
+    } else {
+      await sql`
+        INSERT INTO alice_memories
+          (user_id, category, memory)
+        VALUES
+          (${userId}, ${cleanCategory}, ${cleanMemory})
+      `;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Save memory error:", error.message);
+    return false;
+  }
+}
+
+
 // --------------------------------------------------
 // Сетевые запросы с тайм-аутом
 // --------------------------------------------------
