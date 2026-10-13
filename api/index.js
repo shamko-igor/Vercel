@@ -1276,10 +1276,7 @@ const sessionId =
     ? body.session.session_id
     : "";
 
-const sessionId =
-typeof body.session?.session_id === "string"
-? body.session.session_id
-: "";
+
 
 const prior = body.state?.session || body.session_state || {};
 
