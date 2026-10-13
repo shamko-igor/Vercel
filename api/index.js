@@ -1276,13 +1276,24 @@ const sessionId =
     ? body.session.session_id
     : "";
 
+const sessionId =
+typeof body.session?.session_id === "string"
+? body.session.session_id
+: "";
+
 const prior = body.state?.session || body.session_state || {};
 
 const databaseState = await loadConversation(sessionId);
 
 const history = normalizeHistory(
-  databaseState?.history ?? prior.history
+databaseState?.history ?? prior.history
 );
+
+const savedWeatherCity =
+databaseState?.weatherCity ||
+(typeof prior.weatherCity === "string"
+? prior.weatherCity
+: "");
 
 const savedWeatherCity =
   databaseState?.weatherCity ||
