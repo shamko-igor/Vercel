@@ -459,7 +459,7 @@ async function getWeatherData(city) {
   url.searchParams.set("forecast_days", "3");
   url.searchParams.set("timezone", "auto");
 
-  const startedAt = Date.now();
+  const weatherFetchStartedAt = Date.now();
 
   try {
     const data = await fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
@@ -810,7 +810,7 @@ async function searchWeb(query) {
 
     console.log(
       "Serper response time:",
-      Date.now() - startedAt,
+      Date.now() - weatherFetchStartedAt,
       "ms; results:",
       organic.length
     );
@@ -994,14 +994,14 @@ try {
   console.log("Weather fetch completed:", {
     url,
     status: response.status,
-    elapsedMs: Date.now() - startedAt
+    elapsedMs: Date.now() - weatherFetchStartedAt
   });
 
   // Оставь здесь существующую обработку response.
 } catch (error) {
   console.error("Weather fetch failed:", {
     url,
-    elapsedMs: Date.now() - startedAt,
+    elapsedMs: Date.now() - weatherFetchStartedAt,
     name: error.name,
     message: error.message
   });
