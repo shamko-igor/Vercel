@@ -1286,11 +1286,6 @@ const history = normalizeHistory(
 databaseState?.history ?? prior.history
 );
 
-const savedWeatherCity =
-databaseState?.weatherCity ||
-(typeof prior.weatherCity === "string"
-? prior.weatherCity
-: "");
 
 const savedWeatherCity =
   databaseState?.weatherCity ||
