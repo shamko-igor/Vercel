@@ -1022,7 +1022,7 @@ weatherContext
       console.error(
         "Gemini API error:",
         response.status,
-        JSON.stringify(data).slice(0, 1500)
+        JSON.stringify(data?.error || data).slice(0, 1500)
       );
 
       throw new Error(`Gemini API returned ${response.status}`);
