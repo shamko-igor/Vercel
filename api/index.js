@@ -13,6 +13,15 @@ const WEATHER_TIMEOUT_MS = 1800;
 const DEFAULT_CITY = "Новосибирск";
 const DEFAULT_TIMEZONE = "Asia/Novosibirsk";
 
+const { neon } = require("@neondatabase/serverless");
+
+const databaseUrl =
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.DATABASE_URL;
+
+const sql = databaseUrl ? neon(databaseUrl) : null;
+
 // --------------------------------------------------
 // Ответ Яндекс Алисе
 // --------------------------------------------------
@@ -122,27 +131,55 @@ function normalizeHistory(history) {
     .slice(-MAX_HISTORY);
 }
 
-function addToHistory(history, command, answer) {
-  const safeHistory = Array.isArray(history)
-    ? history.filter(
-        item =>
-          item &&
-          ["user", "model", "assistant"].includes(item.role) &&
-          typeof item.text === "string"
-      )
-    : [];
+async function loadConversation(sessionId) {
+  if (!sql || !sessionId) return null;
 
-  return [
-    ...safeHistory,
-    {
-      role: "user",
-      text: String(command || "").slice(0, MAX_HISTORY_TEXT)
-    },
-    {
-      role: "model",
-      text: String(answer || "").slice(0, MAX_HISTORY_TEXT)
-    }
-  ].slice(-MAX_HISTORY);
+  try {
+    const rows = await sql`
+      SELECT history, weather_city
+      FROM alice_conversations
+      WHERE session_id = ${sessionId}
+      LIMIT 1
+    `;
+
+    if (!rows.length) return null;
+
+    return {
+      history: rows[0].history,
+      weatherCity: rows[0].weather_city || ""
+    };
+  } catch (error) {
+    console.error("Neon load failed:", error.message);
+    return null;
+  }
+}
+
+async function saveConversation(sessionId, history, weatherCity = "") {
+  if (!sql || !sessionId) return;
+
+  try {
+    await sql`
+      INSERT INTO alice_conversations (
+        session_id,
+        history,
+        weather_city,
+        updated_at
+      )
+      VALUES (
+        ${sessionId},
+        ${JSON.stringify(normalizeHistory(history))}::jsonb,
+        ${String(weatherCity || "").slice(0, 100)},
+        NOW()
+      )
+      ON CONFLICT (session_id)
+      DO UPDATE SET
+        history = EXCLUDED.history,
+        weather_city = EXCLUDED.weather_city,
+        updated_at = NOW()
+    `;
+  } catch (error) {
+    console.error("Neon save failed:", error.message);
+  }
 }
 
 // --------------------------------------------------
@@ -1234,17 +1271,24 @@ console.log("ALICE STATE CHECK:", JSON.stringify({
   messageId: body.session?.message_id,
   command
 }));
-    const prior = body.state?.session || body.session_state || {};
-    console.log("STATE DEBUG:", JSON.stringify({
-  stateKeys: Object.keys(body.state || {}),
-  sessionKeys: Object.keys(body.state?.session || {}),
-  sessionStateKeys: Object.keys(body.session_state || {}),
-  historyLength: Array.isArray(prior.history)
-    ? prior.history.length
-    : -1
-}));
-    const history = normalizeHistory(prior.history);
-    const savedWeatherCity =
+const sessionId =
+  typeof body.session?.session_id === "string"
+    ? body.session.session_id
+    : "";
+
+const prior = body.state?.session || body.session_state || {};
+
+const databaseState = await loadConversation(sessionId);
+
+const history = normalizeHistory(
+  databaseState?.history ?? prior.history
+);
+
+const savedWeatherCity =
+  databaseState?.weatherCity ||
+  (typeof prior.weatherCity === "string"
+    ? prior.weatherCity
+    : "");
       typeof prior.weatherCity === "string" ? prior.weatherCity : "";
 
     if (!command) {
