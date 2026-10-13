@@ -1301,72 +1301,7 @@ const userId =
 
 const memoryStartedAt = Date.now();
 const memories = await loadMemories(userId);
-const rememberMatch = command.match(
-  /(?:^|[.!?]\s*|\s+)(?:запомни-ка|запомни|сохрани в памяти)\s*[:,]?\s*(.+?)\s*[.!]?\s*$/i
-);
-
-if (rememberMatch) {
-  let memoryText = rememberMatch[1].trim();
-
-  // Если запомнить просят фильм, который только что обсуждали,
-  // сохраняем название фильма вместе с просьбой напомнить.
-  const previousUserMessage = [...history]
-    .reverse()
-    .find(item =>
-      (item.role === "user" || item.role === "user".toUpperCase()) &&
-      /залечь на дно в брюгге/i.test(item.text || item.content || "")
-    );
-
-  if (
-    /вечером спрошу|потом спрошу|напомни/i.test(memoryText) &&
-    previousUserMessage
-  ) {
-    memoryText =
-      "Фильм, о котором пользователь просил напомнить: " +
-      "«Залечь на дно в Брюгге». Просьба вспомнить название при следующем вопросе.";
-  }
-
-  console.log("Memory save started:", {
-    userIdPresent: Boolean(userId),
-    memoryLength: memoryText.length
-  });
-
-  const saved = await saveMemory(
-    userId,
-    "general",
-    memoryText
-  );
-
-  console.log("Memory save result:", {
-    saved,
-    userIdPresent: Boolean(userId)
-  });
-
-  const responseText = saved
-    ? "Записал в долговременную память, Ваше Величество. Постараюсь не растерять."
-    : "Не получилось сохранить воспоминание. Проверь подключение к базе данных.";
-
-  const nextHistory = addToHistory(
-    history,
-    command,
-    responseText
-  );
-
-  await saveConversation(
-    sessionId,
-    nextHistory,
-    savedWeatherCity
-  );
-
-  return sendJson(
-    res,
-    200,
-    reply(responseText, {
-      history: nextHistory,
-      weatherCity: savedWeatherCity
-    })
-  );
-}
+crememberMatch = command.match
 console.log("Memory load:", {
   elapsedMs: Date.now() - memoryStartedAt,
   userIdPresent: Boolean(userId),
