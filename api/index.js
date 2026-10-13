@@ -171,7 +171,7 @@ async function loadConversation(sessionId) {
   }
 }
 
-async function Conversation(sessionId, history, weatherCity = "") {
+async function saveConversation(sessionId, history, weatherCity = "") {
   if (!sql || !sessionId) return;
 
   try {
