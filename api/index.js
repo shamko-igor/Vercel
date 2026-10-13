@@ -459,26 +459,7 @@ async function getWeatherData(city) {
   url.searchParams.set("forecast_days", "3");
   url.searchParams.set("timezone", "auto");
 
-  const weatherFetchStartedAt = Date.now();
-
-  try {
-    const data = await fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
-
-    console.log("Open-Meteo forecast received:", {
-      city: city.name,
-      elapsedMs: Date.now() - startedAt
-    });
-
-    return data;
-  } catch (error) {
-    console.error("Open-Meteo forecast failed:", {
-      city: city.name,
-      elapsedMs: Date.now() - startedAt,
-      message: error.message
-    });
-
-    throw error;
-  }
+  return fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
 }
 
 // --------------------------------------------------
