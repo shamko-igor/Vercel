@@ -8,6 +8,12 @@ const MAX_HISTORY_TEXT = 1000;
 const SERPER_TIMEOUT_MS = 3000;
 const GEMINI_TIMEOUT_MS = 7000;
 
+const WEATHER_TIMEOUT_MS = 2500;
+const IP_TIMEOUT_MS = 1200;
+
+const DEFAULT_CITY = "Новосибирск";
+const DEFAULT_TIMEZONE = "Asia/Novosibirsk";
+
 // --------------------------------------------------
 // Ответ Яндекс Алисе
 // --------------------------------------------------
@@ -122,6 +128,304 @@ function isWeatherQuery(text) {
 
   return /погод|на улице|за окном|что надеть|как одеваться|как одеться|что по погоде|сколько градусов|температур|дожд|снег|ветер|прогноз|зонт|куртк|тепло ли|холодно ли|че там на улице|че на улице|что там на улице/i.test(query);
 }
+
+
+const WEATHER_CODES = {
+  0: "ясно",
+  1: "преимущественно ясно",
+  2: "переменная облачность",
+  3: "пасмурно",
+  45: "туман",
+  48: "туман с изморозью",
+  51: "слабая морось",
+  53: "морось",
+  55: "сильная морось",
+  56: "слабая ледяная морось",
+  57: "сильная ледяная морось",
+  61: "слабый дождь",
+  63: "дождь",
+  65: "сильный дождь",
+  66: "слабый ледяной дождь",
+  67: "сильный ледяной дождь",
+  71: "слабый снег",
+  73: "снег",
+  75: "сильный снег",
+  77: "снежная крупа",
+  80: "небольшие ливни",
+  81: "ливни",
+  82: "сильные ливни",
+  85: "слабый снегопад",
+  86: "сильный снегопад",
+  95: "гроза",
+  96: "гроза с небольшим градом",
+  99: "гроза с сильным градом"
+};
+
+async function fetchJson(url, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { Accept: "application/json" }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Определяем IP, с которого пришёл запрос в Vercel.
+function getClientIp(req) {
+  const forwarded = req.headers?.["x-forwarded-for"];
+
+  const ip = String(
+    Array.isArray(forwarded) ? forwarded[0] : forwarded || ""
+  )
+    .split(",")[0]
+    .trim();
+
+  if (!ip || ip === "127.0.0.1" || ip === "::1") {
+    return "";
+  }
+
+  // Не отправляем локальные IPv4-адреса на внешний сервис.
+  if (
+    /^10\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ||
+    /^169\.254\./.test(ip)
+  ) {
+    return "";
+  }
+
+  return ip;
+}
+
+// Пытаемся определить город по IP. При неудаче используем Новосибирск.
+async function getDefaultWeatherCity(req) {
+  const ip = getClientIp(req);
+
+  if (ip) {
+    try {
+      const data = await fetchJson(
+        `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
+        IP_TIMEOUT_MS
+      );
+
+      if (
+        data.city &&
+        !data.error &&
+        !data.reserved &&
+        data.latitude != null &&
+        data.longitude != null
+      ) {
+        return {
+          name: data.city,
+          latitude: Number(data.latitude),
+          longitude: Number(data.longitude)
+        };
+      }
+    } catch (error) {
+      console.warn("IP geolocation unavailable:", error.message);
+    }
+  }
+
+  return geocodeCity(DEFAULT_CITY);
+}
+
+// Поиск координат города через Open-Meteo.
+async function geocodeCity(cityName) {
+  const url = new URL(
+    "https://geocoding-api.open-meteo.com/v1/search"
+  );
+
+  url.searchParams.set("name", cityName);
+  url.searchParams.set("count", "5");
+  url.searchParams.set("language", "ru");
+  url.searchParams.set("format", "json");
+
+  const data = await fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
+  const results = Array.isArray(data.results) ? data.results : [];
+
+  if (!results.length) {
+    throw new Error(`City not found: ${cityName}`);
+  }
+
+  // Предпочитаем совпадение по названию, иначе первый результат.
+  const normalized = normalizeText(cityName);
+
+  const match = results.find(
+    item => normalizeText(item.name) === normalized
+  ) || results[0];
+
+  return {
+    name: match.name,
+    country: match.country || "",
+    latitude: Number(match.latitude),
+    longitude: Number(match.longitude)
+  };
+}
+
+// Ищем город, явно названный в текущей реплике.
+function extractCityFromCommand(command) {
+  const knownCities = [
+    "Санкт-Петербург",
+    "Ростов-на-Дону",
+    "Нижний Новгород",
+    "Новосибирск",
+    "Екатеринбург",
+    "Красноярск",
+    "Владивосток",
+    "Хабаровск",
+    "Челябинск",
+    "Краснодар",
+    "Кемерово",
+    "Барнаул",
+    "Иркутск",
+    "Казань",
+    "Самара",
+    "Тюмень",
+    "Омск",
+    "Томск",
+    "Москва",
+    "Пермь",
+    "Уфа",
+    "Минск",
+    "Алматы",
+    "Астана",
+    "Амстердам"
+  ];
+
+  const text = normalizeText(command);
+
+  for (const city of knownCities) {
+    if (text.includes(normalizeText(city))) {
+      return city;
+    }
+  }
+
+  // Резервный вариант для городов, которых нет в списке.
+  const match = String(command).match(
+    /(?:погода|прогноз|температура|ветер|дождь|снег)[^.!?]{0,35}?\bв\s+([^,!?;.]+)/i
+  );
+
+  if (match) {
+    return match[1]
+      .replace(/\b(сегодня|завтра|сейчас|послезавтра|на выходных)\b/gi, "")
+      .trim();
+  }
+
+  return "";
+}
+
+function isWeatherFollowUp(command, history) {
+  const users = history.filter(item => item.role === "user");
+  const lastWeather = users.findLast(item => isWeatherQuery(item.text));
+
+  if (!lastWeather) return false;
+
+  return /^(а\s+)?(завтра|сегодня|послезавтра|на выходных|ночью|утром|вечером|днем|днём|а\s+ночью|а\s+утром|а\s+вечером)\b/i
+    .test(normalizeText(command));
+}
+
+function weatherDescription(code) {
+  return WEATHER_CODES[code] || "переменная погода";
+}
+
+// Получаем текущие условия и прогноз на несколько дней.
+async function getWeatherData(city) {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+
+  url.searchParams.set("latitude", String(city.latitude));
+  url.searchParams.set("longitude", String(city.longitude));
+  url.searchParams.set(
+    "current",
+    [
+      "temperature_2m",
+      "apparent_temperature",
+      "relative_humidity_2m",
+      "precipitation",
+      "weather_code",
+      "wind_speed_10m"
+    ].join(",")
+  );
+  url.searchParams.set(
+    "daily",
+    [
+      "weather_code",
+      "temperature_2m_max",
+      "temperature_2m_min",
+      "precipitation_probability_max"
+    ].join(",")
+  );
+  url.searchParams.set("forecast_days", "3");
+  url.searchParams.set("timezone", DEFAULT_TIMEZONE);
+
+  return fetchJson(url.toString(), WEATHER_TIMEOUT_MS);
+}
+
+function formatWeatherAnswer(city, data, command) {
+  const current = data.current;
+  const daily = data.daily;
+
+  if (!current || !daily || !daily.time?.length) {
+    throw new Error("Open-Meteo returned incomplete weather data");
+  }
+
+  const tomorrow = /завтра|послезавтра/.test(normalizeText(command));
+  const dayIndex = tomorrow ? 1 : 0;
+
+  if (dayIndex >= daily.time.length) {
+    throw new Error("Forecast day is unavailable");
+  }
+
+  const cityName = city.name;
+  const date = daily.time[dayIndex];
+  const description = weatherDescription(daily.weather_code[dayIndex]);
+  const min = daily.temperature_2m_min[dayIndex];
+  const max = daily.temperature_2m_max[dayIndex];
+  const rainChance = daily.precipitation_probability_max?.[dayIndex];
+
+  if (tomorrow) {
+    return `${cityName}, завтра: ${description}. Температура от ${min} до ${max} градусов.` +
+      (rainChance != null ? ` Вероятность осадков до ${rainChance} процентов.` : "");
+  }
+
+  const currentDescription = weatherDescription(current.weather_code);
+  const feels = current.apparent_temperature;
+  const wind = current.wind_speed_10m;
+
+  return `${cityName}, сейчас ${currentDescription}, ${current.temperature_2m} градусов` +
+    (feels != null ? `, ощущается как ${feels}` : "") +
+    `. Ветер ${wind} километров в час. На сегодня от ${min} до ${max} градусов.` +
+    (rainChance != null ? ` Вероятность осадков до ${rainChance} процентов.` : "");
+}
+
+async function getWeatherAnswer(command, history, req) {
+  const explicitCity = extractCityFromCommand(command);
+  const previousCity = extractCityFromHistory(history);
+
+  let city;
+
+  if (explicitCity) {
+    city = await geocodeCity(explicitCity);
+  } else if (isWeatherFollowUp(command, history) && previousCity) {
+    city = await geocodeCity(previousCity);
+  } else {
+    city = await getDefaultWeatherCity(req);
+  }
+
+  const data = await getWeatherData(city);
+  return formatWeatherAnswer(city, data, command);
+}
+
 
 // --------------------------------------------------
 // Определение необходимости интернет-поиска
@@ -473,7 +777,16 @@ async function askGemini(
     .slice(-MAX_HISTORY_TEXT);
 
   const weatherQuery = isWeatherQuery(command);
-
+const currentDateTime = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: DEFAULT_TIMEZONE,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date());
   const prompt = [
     "Ты — Джарвис, личный цифровой помощник пользователя. Ты говоришь через голосовой интерфейс Яндекс Алисы.",
     "",
@@ -531,6 +844,10 @@ async function askGemini(
     "ТВОЁ ИМЯ:",
     "Тебя зовут Джарвис. Не называй себя Алисой. Алиса — только голосовой интерфейс.",
     "Если пользователь спрашивает, почему голос женский или почему он звучит как Алиса, кратко объясни, что голос обеспечивает Алиса, а ты — Джарвис.",
+    "",
+    "ТЕКУЩАЯ ДАТА И ВРЕМЯ:",
+    currentDateTime + ". Часовой пояс: " + DEFAULT_TIMEZONE + ".",
+    "Используй эти значения для вопросов о сегодняшнем дне и текущем времени.",
     "",
     "ИСТОРИЯ ДИАЛОГА:",
     historyText || "История отсутствует.",
@@ -712,6 +1029,46 @@ module.exports = async function handler(req, res) {
           "Не расслышал вопрос. Повторите, пожалуйста.",
           { history }
         )
+      );
+    }
+
+    // Погоду получаем напрямую из Open-Meteo.
+    const weatherRequest =
+      isWeatherQuery(command) ||
+      isWeatherFollowUp(command, history);
+
+    if (weatherRequest) {
+      let weatherAnswer;
+
+      try {
+        weatherAnswer = await getWeatherAnswer(
+          command,
+          history,
+          req
+        );
+      } catch (error) {
+        console.error("Open-Meteo weather error:", error.message);
+
+        weatherAnswer =
+          "Не удалось получить актуальную погоду. Попробуй немного позже.";
+      }
+
+      const nextHistory = [
+        ...history,
+        { role: "user", text: command.slice(0, MAX_HISTORY_TEXT) },
+        { role: "model", text: weatherAnswer.slice(0, MAX_HISTORY_TEXT) }
+      ].slice(-MAX_HISTORY);
+
+      console.log(
+        "Weather response time:",
+        Date.now() - requestStartedAt,
+        "ms"
+      );
+
+      return sendJson(
+        res,
+        200,
+        reply(weatherAnswer, { history: nextHistory })
       );
     }
 
