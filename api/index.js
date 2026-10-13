@@ -1324,6 +1324,76 @@ const userId =
 
 const memoryStartedAt = Date.now();
 const memories = await loadMemories(userId);
+    const forgetMatch = command.match(
+  /^\s*забудь(?:\s+из памяти)?\s+(.+?)\s*[.!]?\s*$/i
+);
+
+if (forgetMatch) {
+  const target = forgetMatch[1]
+    .trim()
+    .replace(/[.!?]+$/, "")
+    .toLowerCase();
+
+  let deletedCount = 0;
+  let responseText = "";
+
+  if (/^(всё|все|всю память|все воспоминания)$/.test(target)) {
+    try {
+      const deleted = await sql`
+        DELETE FROM alice_memories
+        WHERE user_id = ${userId}
+        RETURNING id
+      `;
+      deletedCount = deleted.length;
+      responseText = `Удалил воспоминания из долговременной памяти: ${deletedCount}.`;
+    } catch (error) {
+      console.error("Delete memories error:", error.message);
+      responseText = "Не получилось удалить воспоминания из базы данных.";
+    }
+  } else {
+    const rows = await loadMemories(userId);
+    const keywords = target
+      .replace(/^(мой|мои|моя|моё|любимый|любимая|любимое|любимые)\s+/i, "")
+      .split(/\s+/)
+      .filter(word => word.length > 2);
+
+    const matches = rows.filter(item => {
+      const memory = String(item.memory || "").toLowerCase();
+      return keywords.some(word => memory.includes(word));
+    });
+
+    if (matches.length === 0) {
+      responseText = "Не нашёл подходящих воспоминаний для удаления.";
+    } else {
+      try {
+        const ids = matches.map(item => item.id);
+        const deleted = await sql`
+          DELETE FROM alice_memories
+          WHERE user_id = ${userId}
+            AND id = ANY(${ids}::bigint[])
+          RETURNING id
+        `;
+        deletedCount = deleted.length;
+        responseText = `Удалил подходящие воспоминания: ${deletedCount}.`;
+      } catch (error) {
+        console.error("Delete memories error:", error.message);
+        responseText = "Не получилось удалить воспоминания из базы данных.";
+      }
+    }
+  }
+
+  const nextHistory = addToHistory(history, command, responseText);
+  await saveConversation(sessionId, nextHistory, savedWeatherCity);
+
+  return sendJson(
+    res,
+    200,
+    reply(responseText, {
+      history: nextHistory,
+      weatherCity: savedWeatherCity
+    })
+  );
+}
 const rememberMatch = command.match(
   /^\s*(?:запомни-ка|запомни|сохрани в памяти)\s*[:,]?\s*(.+?)\s*[.!]?\s*$/i
 );
