@@ -145,7 +145,17 @@ async function fetchJson(url, timeoutMs) {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorBody = await response.text();
+
+      console.error("Weather/API HTTP error:", {
+        status: response.status,
+        url,
+        body: errorBody
+      });
+
+      throw new Error(
+        `HTTP ${response.status}: ${errorBody.slice(0, 700)}`
+      );
     }
 
     return await response.json();
