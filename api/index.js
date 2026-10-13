@@ -123,10 +123,25 @@ function normalizeHistory(history) {
 }
 
 function addToHistory(history, command, answer) {
+  const safeHistory = Array.isArray(history)
+    ? history.filter(
+        item =>
+          item &&
+          ["user", "model", "assistant"].includes(item.role) &&
+          typeof item.text === "string"
+      )
+    : [];
+
   return [
-    ...history,
-    { role: "user", text: command.slice(0, MAX_HISTORY_TEXT) },
-    { role: "model", text: answer.slice(0, MAX_HISTORY_TEXT) }
+    ...safeHistory,
+    {
+      role: "user",
+      text: String(command || "").slice(0, MAX_HISTORY_TEXT)
+    },
+    {
+      role: "model",
+      text: String(answer || "").slice(0, MAX_HISTORY_TEXT)
+    }
   ].slice(-MAX_HISTORY);
 }
 
@@ -923,6 +938,27 @@ async function askGemini(
 В технических задачах предлагай конкретные решения и рабочий код.
 
 ПАМЯТЬ ДИАЛОГА И УДЕРЖАНИЕ ТЕМЫ
+КРИТИЧЕСКОЕ ПРАВИЛО: СНАЧАЛА КОНТЕКСТ, ПОТОМ ОТВЕТ.
+Последнее сообщение пользователя нельзя интерпретировать в отрыве от предыдущих реплик.
+Если ты сам задал вопрос с вариантами ответа, а пользователь выбрал один из вариантов, немедленно выполни следующий логичный шаг в рамках исходной темы.
+Примеры:
+— Ты: «Хочешь фильм потяжелее или комедию?»
+— Пользователь: «Потяжелее, конечно».
+— Правильно: предложить несколько тяжёлых фильмов с кратким описанием.
+— Неправильно: спрашивать, какую задачу нужно решить, или переводить разговор на программирование.
+
+— Ты: «Тебе подобрать что-то мрачное или безумное?»
+— Пользователь: «Безумное».
+— Правильно: предложить конкретные необычные фильмы.
+— Неправильно: спрашивать, что именно пользователь собирается сделать.
+
+— Ты: «Могу предложить три варианта».
+— Пользователь: «Давай».
+— Правильно: выдать три варианта.
+— Неправильно: спрашивать, что именно нужно предложить.
+Короткие ответы пользователя обычно являются продолжением предыдущего вопроса или предложения. Восстанавливай их смысл по ближайшим репликам.
+Не используй профиль пользователя, его прежние технические задачи или любимые темы вместо текущего контекста. Если сейчас обсуждается кино, продолжай обсуждать кино, пока пользователь явно не сменит тему.
+Перед генерацией ответа определи, какое действие логически ожидается от тебя после последней реплики. Затем выполни это действие, а не просто реагируй на отдельные слова.
 Ты ведёшь непрерывный разговор, а не отвечаешь на каждое сообщение как на отдельный запрос.
 ОБЯЗАТЕЛЬНО учитывай предыдущие сообщения пользователя и свои ответы. Короткие реплики вроде «давай», «ещё», «не такое», «поподробнее», «звучит прикольно», «а что-нибудь другое?» почти всегда относятся к текущей теме разговора.
 Перед ответом мысленно определи:
@@ -1033,7 +1069,15 @@ async function askGemini(
     () => controller.abort(),
     Math.min(GEMINI_TIMEOUT_MS, 3000)
   );
-
+console.log(
+  "GEMINI HISTORY:",
+  JSON.stringify(
+    normalizedContents.map(item => ({
+      role: item.role,
+      text: item.parts.map(part => part.text).join(" ").slice(0, 200)
+    }))
+  )
+);
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -1052,8 +1096,8 @@ async function askGemini(
           },
           contents: normalizedContents,
           generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 160
+            temperature: 0.7,
+            maxOutputTokens: 360
           }
         }),
         signal: controller.signal
@@ -1182,6 +1226,14 @@ module.exports = async function handler(req, res) {
     const command = extractCommand(body);
 
     const prior = body.state?.session || body.session_state || {};
+    console.log("STATE DEBUG:", JSON.stringify({
+  stateKeys: Object.keys(body.state || {}),
+  sessionKeys: Object.keys(body.state?.session || {}),
+  sessionStateKeys: Object.keys(body.session_state || {}),
+  historyLength: Array.isArray(prior.history)
+    ? prior.history.length
+    : -1
+}));
     const history = normalizeHistory(prior.history);
     const savedWeatherCity =
       typeof prior.weatherCity === "string" ? prior.weatherCity : "";
