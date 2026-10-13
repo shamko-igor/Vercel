@@ -1369,7 +1369,11 @@ const savedWeatherCity =
         command,
         weatherResult.answer
       );
-
+await saveConversation(
+  sessionId,
+  nextHistory,
+  weatherResult.city
+);
       console.log(
         "Weather response time:",
         Date.now() - requestStartedAt,
