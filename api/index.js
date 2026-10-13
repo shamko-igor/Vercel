@@ -745,6 +745,7 @@ async function searchWeb(query) {
 
 
 async function askGemini(command, history = [], searchContext = "", searchRequired = false) {
+  console.log("Gemini request started:", Date.now());
   const startedAt = Date.now();
   const timeoutMs = 3000;
 
@@ -889,7 +890,13 @@ async function askGemini(command, history = [], searchContext = "", searchRequir
         signal: controller.signal
       }
     );
-
+console.log(
+  "Gemini HTTP response:",
+  response.status,
+  "elapsed:",
+  Date.now() - startedAt,
+  "ms"
+);
     const data = await response.json();
 
     if (!response.ok) {
