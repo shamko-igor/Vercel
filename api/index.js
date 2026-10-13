@@ -824,10 +824,18 @@ async function searchWeb(query) {
 // --------------------------------------------------
 
 
-async function askGemini(command, history = [], searchContext = "", searchRequired = false, extraInstruction = "") {
-  console.log("Gemini request started:", Date.now());
-  const weatherFetchStartedAt = Date.now();
-  const timeoutMs = 3000;
+async function askGemini(
+  command,
+  history = [],
+  searchContext = "",
+  searchRequired = false,
+  extraInstruction = ""
+) {
+  const startedAt = Date.now();
+
+  console.log("Gemini request started:", startedAt);
+
+  const timeoutMs = Math.min(GEMINI_TIMEOUT_MS, 3000);
 
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is missing");
@@ -961,22 +969,34 @@ if (extraInstruction) {
 const context = contextParts.join("\n\n");
 
 
-  const controller = new AbortController();
-  console.log("Weather fetch started:", url);
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  
-const weatherFetchStartedAt = Date.now();
+const controller = new AbortController();
+const timer = setTimeout(() => controller.abort(), timeoutMs);
 
 try {
-  const response = await fetch(url, {
-    signal: controller.signal
-  });
-
-  console.log("Weather fetch completed:", {
-    url,
-    status: response.status,
-    elapsedMs: Date.now() - weatherFetchStartedAt
-  });
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{
+            text: context
+              ? systemPrompt + "\n\n" + context
+              : systemPrompt
+          }]
+        },
+        contents: normalizedContents,
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 100
+        }
+      }),
+      signal: controller.signal
+    }
+  );
 
   // Оставь здесь существующую обработку response.
 } catch (error) {
