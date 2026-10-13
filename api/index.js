@@ -159,9 +159,74 @@ async function fetchJson(url, timeoutMs) {
 // IP-геолокация отключена: ipapi.co возвращал HTTP 429.
 // --------------------------------------------------
 
-async function getDefaultWeatherCity() {
-  return geocodeCity(DEFAULT_CITY);
+
+async function getDefaultWeatherCity(req) {
+  const forwardedFor = req.headers?.["x-forwarded-for"];
+  const vercelIp = req.headers?.["x-real-ip"];
+
+  const rawIp = (
+    (typeof forwardedFor === "string" ? forwardedFor.split(",")[0] : "") ||
+    (typeof vercelIp === "string" ? vercelIp : "")
+  ).trim();
+
+  // Без IP пользователя не угадываем город по местоположению Vercel.
+  if (
+    !rawIp ||
+    !/^[0-9a-fA-F.:]+$/.test(rawIp) ||
+    rawIp === "127.0.0.1" ||
+    rawIp === "::1"
+  ) {
+    console.warn("User IP unavailable for geolocation");
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 900);
+
+  try {
+    const url =
+      `https://ipapi.co/${encodeURIComponent(rawIp)}/json/`;
+
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      console.warn("IP geolocation HTTP error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (
+      data.error ||
+      !data.city ||
+      !Number.isFinite(Number(data.latitude)) ||
+      !Number.isFinite(Number(data.longitude))
+    ) {
+      console.warn("IP geolocation returned no usable city");
+      return null;
+    }
+
+    console.log(
+      "Detected user location:",
+      data.city,
+      data.country_name || ""
+    );
+
+    return data.city;
+  } catch (error) {
+    console.warn(
+      "IP geolocation failed:",
+      error?.name || error?.message || String(error)
+    );
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
+
 
 async function geocodeCity(cityName) {
   const url = new URL(
