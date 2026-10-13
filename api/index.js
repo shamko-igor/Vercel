@@ -1301,7 +1301,37 @@ const userId =
 
 const memoryStartedAt = Date.now();
 const memories = await loadMemories(userId);
-crememberMatch = command.match
+const rememberMatch = command.match(
+  /^\s*(?:запомни-ка|запомни|сохрани в памяти)\s*[:,]?\s*(.+?)\s*[.!]?\s*$/i
+);
+
+if (rememberMatch) {
+  const memoryText = rememberMatch[1].trim();
+
+  const saved = await saveMemory(userId, "general", memoryText);
+
+  console.log("Memory save result:", {
+    saved,
+    userIdPresent: Boolean(userId)
+  });
+
+  const responseText = saved
+    ? "Записал в долговременную память, Ваше Величество."
+    : "Не получилось сохранить воспоминание. Проверь подключение к базе данных.";
+
+  const nextHistory = addToHistory(history, command, responseText);
+
+  await saveConversation(sessionId, nextHistory, savedWeatherCity);
+
+  return sendJson(
+    res,
+    200,
+    reply(responseText, {
+      history: nextHistory,
+      weatherCity: savedWeatherCity
+    })
+  );
+}
 console.log("Memory load:", {
   elapsedMs: Date.now() - memoryStartedAt,
   userIdPresent: Boolean(userId),
