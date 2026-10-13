@@ -376,6 +376,20 @@ function extractCityFromCommand(command) {
   return "";
 }
 
+function extractCityFromHistory(history) {
+  if (!Array.isArray(history)) return "";
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role !== "user") continue;
+
+    const city = extractCityFromCommand(history[i].text);
+
+    if (city) return city;
+  }
+
+  return "";
+}
+
 // --------------------------------------------------
 // Погодные запросы и уточнения
 // --------------------------------------------------
