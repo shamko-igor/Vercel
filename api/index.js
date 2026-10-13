@@ -571,30 +571,54 @@ function formatWeatherAnswer(city, data, command) {
   return answer;
 }
 
+
 async function getWeatherAnswer(command, history, savedCity = "") {
   const explicitCity = extractCityFromCommand(command);
   const previousCity = extractCityFromHistory(history);
+  const text = normalizeText(command);
+
+  // Обычный запрос погоды без города всегда использует настройки сервера.
+  const standaloneWeatherRequest =
+    /^(?:какая погода|погода|что по погоде|температура|сколько градусов)(?:\s+(?:сейчас|сегодня|завтра|послезавтра|на выходных))?$/.test(text);
+
+  // Относительные уточнения: «а завтра?», «а там холодно?»
+  const followUp =
+    !standaloneWeatherRequest &&
+    isWeatherFollowUp(command, history, savedCity);
 
   let city;
 
   if (explicitCity) {
+    // Город прямо назван в текущей команде.
     city = await geocodeCity(explicitCity);
-  } else if (savedCity) {
+  } else if (followUp && savedCity) {
+    // Продолжаем разговор о ранее выбранном городе.
     city = await geocodeCity(savedCity);
-  } else if (previousCity && isWeatherFollowUp(command, history)) {
+  } else if (followUp && previousCity) {
     city = await geocodeCity(previousCity);
   } else {
-    city = await getDefaultWeatherCity();
+    // Не доверяем старому городу в сессии.
+    // По умолчанию используем город из настроек сервера.
+    const defaultCity = await getDefaultWeatherCity();
+    city = await geocodeCity(defaultCity);
   }
 
   const data = await getWeatherData(city);
   const answer = formatWeatherAnswer(city, data, command);
+
+  console.log("Weather city selected:", city.name);
+  console.log(
+    "Weather coordinates:",
+    city.latitude,
+    city.longitude
+  );
 
   return {
     answer,
     city: city.name
   };
 }
+
 
 // --------------------------------------------------
 // Поиск актуальной информации
