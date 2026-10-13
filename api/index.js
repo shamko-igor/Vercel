@@ -170,9 +170,15 @@ async function fetchJson(url, timeoutMs) {
 // --------------------------------------------------
 
 
-async function getDefaultWeatherCity(req) {
+function getDefaultWeatherCity() {
   console.log("Using configured default city:", DEFAULT_CITY);
-  return DEFAULT_CITY;
+
+  return {
+    name: DEFAULT_CITY,
+    country: "Россия",
+    latitude: 55.0084,
+    longitude: 82.9357
+  };
 }
 
 async function geocodeCity(cityName) {
