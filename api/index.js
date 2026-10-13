@@ -1296,7 +1296,14 @@ const userId =
     ? body.session.user_id
     : "";
 
+const memoryStartedAt = Date.now();
 const memories = await loadMemories(userId);
+
+console.log("Memory load:", {
+  elapsedMs: Date.now() - memoryStartedAt,
+  userIdPresent: Boolean(userId),
+  memoriesCount: memories.length
+});
 
 const memoryContext = memories.length
   ? "\n\nФАКТЫ, СОХРАНЁННЫЕ О ДОЛГОСРОЧНОЙ ПАМЯТИ ПОЛЬЗОВАТЕЛЯ:\n" +
