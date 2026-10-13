@@ -1444,7 +1444,40 @@ await saveConversation(
         })
       );
     }
+// Быстрые ответы без обращения к Gemini
+const quickCommand = normalizeText(command);
 
+const quickReplies = {
+  "привет": "О, Ваше Величество пожаловало. Слушаю, что сегодня натворим?",
+  "здравствуй": "И тебе здравствовать, Ваше Величество. Что на повестке?",
+  "здравствуйте": "Здравствуйте, Ваше Величество. Джарвис на связи.",
+  "алло": "На связи, Ваше Величество. Говори, слушаю.",
+  "ты тут": "Тут я, тут. Куда ж я от царских поручений денусь?",
+  "ты здесь": "Здесь, Ваше Величество. Весь во внимании.",
+  "как дела": "Работаю, не жалуюсь. В отличие от некоторых, у меня дедлайны не вызывают кризис личности."
+};
+
+if (quickReplies[quickCommand]) {
+  const answer = quickReplies[quickCommand];
+  const nextHistory = addToHistory(history, command, answer);
+
+  await saveConversation(sessionId, nextHistory, savedWeatherCity);
+
+  console.log(
+    "Quick reply, webhook total time:",
+    Date.now() - requestStartedAt,
+    "ms"
+  );
+
+  return sendJson(
+    res,
+    200,
+    reply(answer, {
+      history: nextHistory,
+      weatherCity: savedWeatherCity
+    })
+  );
+}
     const needsSearch = shouldSearch(command);
     const isFollowUp = isLikelyFollowUp(command);
 
