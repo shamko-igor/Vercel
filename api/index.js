@@ -131,6 +131,23 @@ function normalizeHistory(history) {
     .slice(-MAX_HISTORY);
 }
 
+function addToHistory(history, userMessage, assistantMessage) {
+const result = normalizeHistory(history);
+
+result.push(
+{
+role: "user",
+text: String(userMessage || "").slice(0, MAX_TEXT)
+},
+{
+role: "model",
+text: String(assistantMessage || "").slice(0, MAX_TEXT)
+}
+);
+
+return result.slice(-MAX_HISTORY);
+}
+
 async function loadConversation(sessionId) {
   if (!sql || !sessionId) return null;
 
