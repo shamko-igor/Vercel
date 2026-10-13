@@ -171,7 +171,7 @@ async function loadConversation(sessionId) {
   }
 }
 
-async function saveConversation(sessionId, history, weatherCity = "") {
+async function Conversation(sessionId, history, weatherCity = "") {
   if (!sql || !sessionId) return;
 
   try {
@@ -195,7 +195,7 @@ async function saveConversation(sessionId, history, weatherCity = "") {
         updated_at = NOW()
     `;
   } catch (error) {
-    console.error("Neon save failed:", error.message);
+    console.error("Neon  failed:", error.message);
   }
 }
 
@@ -263,6 +263,29 @@ async function saveMemory(userId, category, memory) {
   }
 }
 
+async function deleteMemories(userId, category = null) {
+  if (!sql || !userId) return false;
+
+  try {
+    if (category) {
+      await sql`
+        DELETE FROM alice_memories
+        WHERE user_id = ${userId}
+          AND category = ${category}
+      `;
+    } else {
+      await sql`
+        DELETE FROM alice_memories
+        WHERE user_id = ${userId}
+      `;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Delete memories error:", error.message);
+    return false;
+  }
+}
 
 // --------------------------------------------------
 // Сетевые запросы с тайм-аутом
