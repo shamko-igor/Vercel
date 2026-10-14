@@ -1156,11 +1156,12 @@ console.log(
             }]
           },
           contents: normalizedContents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 120
-            }
-        }),
+generationConfig: {
+  maxOutputTokens: 120,
+  thinkingConfig: {
+    thinkingLevel: "low"
+  }
+}),
         signal: controller.signal
       }
     );
