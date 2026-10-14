@@ -1152,16 +1152,17 @@ console.log(
             parts: [{
               text: context
                 ? systemPrompt + "\n\n" + context
-                : systemPrompt
+                 : systemPrompt
             }]
           },
           contents: normalizedContents,
-generationConfig: {
-  maxOutputTokens: 120,
-  thinkingConfig: {
-    thinkingLevel: "low"
-  }
-}),
+          generationConfig: {
+            maxOutputTokens: 120,
+            thinkingConfig: {
+              thinkingLevel: "low"
+            }
+          }
+        }),
         signal: controller.signal
       }
     );
