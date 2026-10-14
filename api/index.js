@@ -1158,7 +1158,7 @@ console.log(
           contents: normalizedContents,
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 120,
+            maxOutputTokens: 120
             }
         }),
         signal: controller.signal
